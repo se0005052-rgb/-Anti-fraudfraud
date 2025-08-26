@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>青少年防詐騙互動問答 (純問答版)</title>
+    <title>青少年防詐騙互動問答 (最終統計版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,20 +15,27 @@
         .quiz-container {
             background-color: #1e293b; /* slate-800 */
         }
-        .option-btn {
+        .stat-bar-container {
             transition: all 0.2s ease-in-out;
+            cursor: pointer;
         }
-        .option-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        .stat-bar-container:hover {
+            background-color: #334155; /* slate-700 */
         }
-        .correct {
-            background-color: #22c55e !important; /* green-500 */
-            border-color: #16a34a !important; /* green-600 */
+        .bar {
+            transition: width 0.3s ease-in-out;
         }
-        .incorrect {
-            background-color: #ef4444 !important; /* red-500 */
-            border-color: #dc2626 !important; /* red-600 */
+        .result-bar {
+             background-color: #06b6d4; /* cyan-500 */
+        }
+        .result-bar.low {
+            background-color: #ef4444; /* red-500 */
+        }
+        .result-bar.medium {
+            background-color: #f59e0b; /* amber-500 */
+        }
+        .result-bar.high {
+            background-color: #22c55e; /* green-500 */
         }
     </style>
 </head>
@@ -38,10 +45,10 @@
 
         <!-- Start Screen -->
         <div id="start-screen" class="text-center">
-            <h1 class="text-3xl sm:text-4xl font-black text-cyan-300 mb-4">防詐大作戰！</h1>
+            <h1 class="text-3xl sm:text-4xl font-black text-cyan-300 mb-4">防詐知識挑戰賽</h1>
             <p class="text-slate-300 mb-8">點擊下方按鈕，開始與現場聽眾進行一場即時的防詐騙知識問答！</p>
             <button id="start-btn" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105">
-                開始挑戰
+                開始測驗
             </button>
         </div>
 
@@ -51,23 +58,21 @@
                 <p id="question-counter" class="text-sm text-slate-400">問題 1 / 10</p>
                 <h2 id="question-text" class="text-xl sm:text-2xl font-bold mt-2">問題文字...</h2>
             </div>
-            <div id="options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                <!-- Options will be generated here -->
-            </div>
-            <div id="feedback-container" class="hidden bg-slate-900/50 p-4 rounded-lg">
-                <h3 class="font-bold text-lg mb-2" id="feedback-title"></h3>
-                <p class="text-sm text-slate-300" id="feedback-text"></p>
+            <div id="stats-container" class="space-y-3 mb-6">
+                <!-- Statistics bars will be generated here -->
             </div>
             <div id="controls-container" class="mt-6 flex flex-col sm:flex-row gap-4">
-                 <button id="next-question-btn" class="hidden w-full bg-cyan-500 hover:bg-cyan-600 font-bold py-3 px-6 rounded-lg">下一題</button>
+                 <button id="next-question-btn" class="w-full bg-cyan-500 hover:bg-cyan-600 font-bold py-3 px-6 rounded-lg">下一題</button>
             </div>
         </div>
 
         <!-- Result Screen -->
-        <div id="result-screen" class="hidden text-center">
-            <h2 class="text-3xl font-black text-yellow-300 mb-4">測驗結束！</h2>
-            <p class="text-lg text-slate-300 mb-8">感謝大家的參與！希望今天的活動能幫助各位建立更強的防詐免疫力。</p>
-            <button id="restart-btn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 px-6 rounded-lg text-lg">
+        <div id="result-screen" class="hidden">
+            <h2 class="text-3xl font-black text-yellow-300 mb-6 text-center">測驗結果統計</h2>
+            <div id="result-summary-container" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                <!-- Result summary will be generated here -->
+            </div>
+            <button id="restart-btn" class="w-full mt-6 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 px-6 rounded-lg text-lg">
                 重新開始
             </button>
         </div>
@@ -76,79 +81,16 @@
 
     <script>
         const quizData = [
-            // 30% 心理學概念
-            {
-                type: 'multiple-choice',
-                question: '在網路上買演唱會門票，賣家說「很多人在問，要就快！」，這是利用了你的哪種心理？',
-                options: ['權威', '喜好', '稀缺與急迫', '同情'],
-                answer: '稀缺與急迫',
-                explanation: '這是典型的「稀缺性」與「急迫性」話術，目的是壓縮你的思考時間，讓你因為害怕錯過（FOMO）而倉促付款。'
-            },
-            {
-                type: 'true-false',
-                question: '詐騙集團冒充警察或檢察官，是為了讓我們喜歡他，進而聽從指示。',
-                options: ['O (是)', 'X (非)'],
-                answer: 'X (非)',
-                explanation: '這是利用「權威」原則，讓我們因為害怕而不敢質疑，並非「喜好」。'
-            },
-            {
-                type: 'multiple-choice',
-                question: '網路交友時，對方花好幾個月跟你培養感情，再用「家人生病」的理由借錢，這主要利用了哪種心理鉤子？',
-                options: ['貪婪與希望', '喜好與同情', '社會認同', '稀缺性'],
-                answer: '喜好與同情',
-                explanation: '透過長期經營建立「喜好」，再用悲慘故事激發「同情」，是交友詐騙的核心手法。'
-            },
-            // 40% 應對行動與方法
-            {
-                type: 'true-false',
-                question: '應徵打工時，公司為了確認你的信用，要求你先寄送個人存摺和提款卡，這是正常的流程。',
-                options: ['O (是)', 'X (非)'],
-                answer: 'X (非)',
-                explanation: '絕對不是！任何要求交付實體存摺或提款卡的行為，都是「人頭帳戶」詐騙。'
-            },
-            {
-                type: 'multiple-choice',
-                question: '防詐黃金法則「暫停、查證、質疑」，不包含以下哪一項？',
-                options: ['暫停思考', '查證來源', '質疑合理性', '與對方辯論'],
-                answer: '與對方辯論',
-                explanation: '遇到疑似詐騙時，我們要做的是保護自己並向外求證，而不是與詐騙方直接衝突或辯論。'
-            },
-            {
-                type: 'true-false',
-                question: '「SAFE」行動計畫中的「S」代表「Share」(分享)，意思是看到可疑訊息要趕快分享給朋友。',
-                options: ['O (是)', 'X (非)'],
-                answer: 'X (非)',
-                explanation: '「S」代表的是「Stop & Slow Down」(停止與放慢)，在做任何決定前先為自己創造緩衝時間。'
-            },
-            {
-                type: 'multiple-choice',
-                question: '如果不幸被騙了，最重要且正確的第一步是什麼？',
-                options: ['自認倒楣，當作教訓', '自己上網找駭客幫忙追回', '保持冷靜，告訴師長並打165', '責怪自己太笨'],
-                answer: '保持冷靜，告訴師長並打165',
-                explanation: '被騙不是你的錯！勇敢求助，保留證據並報警，才是阻止傷害擴大的唯一方法。'
-            },
-             // 30% 隨機問題
-            {
-                type: 'true-false',
-                question: '根據簡報統計，目前臺灣少年最主要的涉案類型是「暴力犯罪」。',
-                options: ['O (是)', 'X (非)'],
-                answer: 'X (非)',
-                explanation: '不是喔！根據警政署統計，少年涉案類型第一名是「詐欺」。'
-            },
-            {
-                type: 'multiple-choice',
-                question: '下列哪一個是簡報中提到的官方求助資源？',
-                options: ['臉書爆料公社', 'Dcard 感情版', '165 反詐騙專線', '私家偵探社'],
-                answer: '165 反詐騙專線',
-                explanation: '165是警政署設立的官方反詐騙諮詢專線，提供最即時、最正確的協助。'
-            },
-            {
-                type: 'true-false',
-                question: '只幫忙領錢的「取款車手」，因為沒有直接騙人，所以法律責任很輕。',
-                options: ['O (是)', 'X (非)'],
-                answer: 'X (非)',
-                explanation: '大錯特錯！車手是詐欺的共犯，會面臨詐欺、洗錢、組織犯罪等多重刑責，後果非常嚴重。'
-            }
+            { type: 'true-false', question: '根據統計，「詐欺」已經超越其他犯罪，成為臺灣少年最主要的涉案類型。', options: ['O (是)', 'X (非)'], answer: 'O (是)', explanation: '沒錯！簡報數據顯示，無論男女，詐欺都是少年最主要的涉案類型，這凸顯了防詐教育的重要性。' },
+            { type: 'multiple-choice', question: '簡報中提到，青少年雖然是「數位原住民」，但大腦的哪個部分尚未發育完全，導致容易衝動決策？', options: ['杏仁核', '海馬迴', '前額葉皮質', '小腦'], answer: '前額葉皮質', explanation: '「前額葉皮質」負責理性思考與風險評估，在青少年時期仍在發展中，因此更容易受到情緒影響而做出高風險決定。' },
+            { type: 'multiple-choice', question: '在網路上買演唱會門票，賣家說「很多人在問，要就快！」，這是利用了你的哪種心理？', options: ['權威', '喜好', '稀缺與急迫', '同情'], answer: '稀缺與急迫', explanation: '這是典型的「稀缺性」與「急迫性」話術，目的是壓縮你的思考時間，讓你因為害怕錯過（FOMO）而倉促付款。' },
+            { type: 'true-false', question: '應徵暑期打工時，公司要求先寄送個人存摺和提款卡來辦理「薪資轉入」，這是正常的流程。', options: ['O (是)', 'X (非)'], answer: 'X (非)', explanation: '絕對不是！任何正常的公司都不會要求你寄送實體存摺或提款卡。這是典型的「人頭帳戶」詐騙手法。' },
+            { type: 'multiple-choice', question: '在遊戲寶物交易中，對方提出用「遊戲點數」代替現金交易，你應該怎麼做？', options: ['答應他，因為點數很方便', '拒絕，並堅持使用有保障的官方交易平台', '先給他一半點數表示誠意', '請他先登入我的帳號驗貨'], answer: '拒絕，並堅持使用有保障的官方交易平台', explanation: '遊戲點數一旦給出序號就難以追回，是詐騙集團最愛用的工具。堅持使用官方或有信譽的第三方平台才是最安全的。' },
+            { type: 'true-false', question: '網路上認識的朋友，如果聊得很投機，在見面前為了「證明你不是警察」，要求你買點數當保證金是合理的。', options: ['O (是)', 'X (非)'], answer: 'X (非)', explanation: '這是100%的詐騙！「買點數驗證身份」是交友詐騙的經典台詞，任何在見面前就談錢的網友，都極有可能是詐騙。' },
+            { type: 'multiple-choice', question: '簡報提到的防詐黃金法則不包含以下哪一項？', options: ['暫停', '查證', '質疑', '反擊'], answer: '反擊', explanation: '黃金法則是「暫停、查證、質疑」。遇到疑似詐騙時，我們要做的是保護自己並尋求協助，而不是直接與對方衝突或反擊。' },
+            { type: 'true-false', question: '如果不幸被騙了，應該覺得很丟臉，最好不要告訴任何人，自己想辦法解決。', options: ['O (是)', 'X (非)'], answer: 'X (非)', explanation: '被騙不是你的錯！詐騙集團利用的是專業的心理學技巧。感到羞恥是正常的，但一定要「消除羞恥感」，勇敢告訴家人、老師並報警，才能及時止損並獲得幫助。' },
+            { type: 'multiple-choice', question: '詐騙集團冒充檢察官，打電話說你的帳戶涉及洗錢案，這是利用了影響力武器中的哪一種？', options: ['社會認同', '權威', '喜好', '貪婪'], answer: '權威', explanation: '冒充檢警、法官、政府官員等具有公權力的身份，是為了建立「權威感」，讓你因為害怕而不敢質疑，進而服從指令。' },
+            { type: 'true-false', question: '「SAFE」行動計畫中的「F」代表「Fortify Your Data」，意思是鞏固你的個人資料，例如不隨意交付存摺或提款卡。', options: ['O (是)', 'X (非)'], answer: 'O (是)', explanation: '完全正確！保護好自己的個人資料，就是建立防詐防火牆最重要的一步。' }
         ];
 
         const startScreen = document.getElementById('start-screen');
@@ -161,12 +103,13 @@
 
         const questionCounter = document.getElementById('question-counter');
         const questionText = document.getElementById('question-text');
-        const optionsContainer = document.getElementById('options-container');
-        const feedbackContainer = document.getElementById('feedback-container');
-        const feedbackTitle = document.getElementById('feedback-title');
-        const feedbackText = document.getElementById('feedback-text');
+        const statsContainer = document.getElementById('stats-container');
+        const resultSummaryContainer = document.getElementById('result-summary-container');
 
         let currentQuestionIndex = 0;
+        let answerCounts = {};
+        let totalVotes = 0;
+        const allResults = [];
 
         startBtn.addEventListener('click', startQuiz);
         nextQuestionBtn.addEventListener('click', showNextQuestion);
@@ -177,6 +120,7 @@
             resultScreen.classList.add('hidden');
             quizScreen.classList.remove('hidden');
             currentQuestionIndex = 0;
+            allResults.length = 0; // Clear previous results
             showQuestion();
         }
 
@@ -186,58 +130,70 @@
             questionCounter.textContent = `問題 ${currentQuestionIndex + 1} / ${quizData.length}`;
             questionText.textContent = currentQuestion.question;
 
+            answerCounts = {};
+            totalVotes = 0;
+
             currentQuestion.options.forEach(option => {
-                const button = document.createElement('button');
-                button.innerText = option;
-                button.classList.add('option-btn', 'w-full', 'p-4', 'rounded-lg', 'border-2', 'border-slate-600', 'bg-slate-700', 'hover:bg-slate-600', 'text-left');
-                button.addEventListener('click', selectAnswer);
-                optionsContainer.appendChild(button);
+                answerCounts[option] = 0;
+                const barContainer = document.createElement('div');
+                barContainer.className = 'stat-bar-container p-3 rounded-lg border-2 border-slate-600';
+                barContainer.dataset.option = option;
+                
+                barContainer.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-bold">${option}</span>
+                        <span class="vote-count text-lg font-mono">0 票 (0%)</span>
+                    </div>
+                    <div class="w-full bg-slate-600 rounded-full h-4">
+                        <div class="bar bg-cyan-500 h-4 rounded-full" style="width: 0%"></div>
+                    </div>
+                `;
+                
+                barContainer.addEventListener('click', () => {
+                    answerCounts[option]++;
+                    totalVotes++;
+                    updateStats();
+                });
+
+                statsContainer.appendChild(barContainer);
             });
-        }
-
-        function resetState() {
-            nextQuestionBtn.classList.add('hidden');
-            feedbackContainer.classList.add('hidden');
-            while (optionsContainer.firstChild) {
-                optionsContainer.removeChild(optionsContainer.firstChild);
-            }
-        }
-
-        function selectAnswer(e) {
-            const selectedBtn = e.target;
-            const currentQuestion = quizData[currentQuestionIndex];
-            const isCorrect = selectedBtn.innerText === currentQuestion.answer;
-
-            const optionButtons = optionsContainer.querySelectorAll('.option-btn');
-            optionButtons.forEach(button => {
-                button.disabled = true; // Disable all buttons
-                if (button.innerText === currentQuestion.answer) {
-                    button.classList.add('correct');
-                } else if (button === selectedBtn) {
-                    button.classList.add('incorrect');
-                }
-            });
-
-            if (isCorrect) {
-                feedbackTitle.textContent = '答對了！';
-                feedbackTitle.style.color = '#22c55e'; // green-500
-            } else {
-                feedbackTitle.textContent = '答錯了...';
-                feedbackTitle.style.color = '#ef4444'; // red-500
-            }
             
-            feedbackText.textContent = currentQuestion.explanation;
-            feedbackContainer.classList.remove('hidden');
-
-            nextQuestionBtn.classList.remove('hidden');
             if (currentQuestionIndex === quizData.length - 1) {
-                nextQuestionBtn.textContent = "結束測驗";
+                nextQuestionBtn.textContent = "完成測驗並查看結果";
             } else {
                 nextQuestionBtn.textContent = "下一題";
             }
         }
+        
+        function updateStats() {
+            const bars = statsContainer.querySelectorAll('.stat-bar-container');
+            bars.forEach(barEl => {
+                const option = barEl.dataset.option;
+                const count = answerCounts[option];
+                const percentage = totalVotes > 0 ? (count / totalVotes) * 100 : 0;
 
-        function showNextQuestion() {
+                barEl.querySelector('.vote-count').textContent = `${count} 票 (${percentage.toFixed(0)}%)`;
+                barEl.querySelector('.bar').style.width = `${percentage}%`;
+            });
+        }
+
+        function resetState() {
+            while (statsContainer.firstChild) {
+                statsContainer.removeChild(statsContainer.firstChild);
+            }
+        }
+
+        function saveAndProceed() {
+            const currentQuestion = quizData[currentQuestionIndex];
+            const correctVotes = answerCounts[currentQuestion.answer] || 0;
+            const correctRatio = totalVotes > 0 ? (correctVotes / totalVotes) * 100 : 0;
+            
+            allResults.push({
+                question: currentQuestion.question,
+                correctRatio: correctRatio,
+                explanation: currentQuestion.explanation
+            });
+
             currentQuestionIndex++;
             if (currentQuestionIndex < quizData.length) {
                 showQuestion();
@@ -246,9 +202,41 @@
             }
         }
 
+        function showNextQuestion() {
+            saveAndProceed();
+        }
+
         function showResults() {
             quizScreen.classList.add('hidden');
             resultScreen.classList.remove('hidden');
+            resultSummaryContainer.innerHTML = '';
+
+            allResults.forEach((result, index) => {
+                const resultEl = document.createElement('div');
+                resultEl.className = 'bg-slate-700/50 p-4 rounded-lg';
+
+                let barColorClass = 'result-bar';
+                if (result.correctRatio < 50) {
+                    barColorClass += ' low';
+                } else if (result.correctRatio < 80) {
+                    barColorClass += ' medium';
+                } else {
+                    barColorClass += ' high';
+                }
+
+                resultEl.innerHTML = `
+                    <p class="font-bold text-sm mb-2">Q${index + 1}: ${result.question}</p>
+                    <div class="flex justify-between items-center mb-1 text-sm">
+                        <span class="text-slate-300">答對率</span>
+                        <span class="font-bold ${barColorClass.split(' ')[1]}--text">${result.correctRatio.toFixed(0)}%</span>
+                    </div>
+                    <div class="w-full bg-slate-600 rounded-full h-3">
+                        <div class="${barColorClass} h-3 rounded-full" style="width: ${result.correctRatio}%"></div>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-2"><strong>解析：</strong>${result.explanation}</p>
+                `;
+                resultSummaryContainer.appendChild(resultEl);
+            });
         }
     </script>
 </body>
