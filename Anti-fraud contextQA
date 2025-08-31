@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>數位陷阱求生記 (沉浸體驗版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #0f172a; color: #e2e8f0;}
+        .container-box { background-color: #1e293b; border: 1px solid #334155; transition: box-shadow 0.3s ease, transform 0.3s ease; }
+        .choice-btn { transition: transform 0.2s ease, background-color 0.2s ease; }
+        .choice-btn:hover { transform: scale(1.03); background-color: #334155; }
+        .prose-invert h3 { color: #93c5fd; }
+        .prose-invert p { color: #cbd5e1; }
+
+        @keyframes success-glow {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); transform: scale(1); }
+            50% { box-shadow: 0 0 25px 10px rgba(34, 197, 94, 0.5); transform: scale(1.02); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); transform: scale(1); }
+        }
+        .animate-success {
+            animation: success-glow 0.6s ease-out;
+        }
+
+        @keyframes fail-glow {
+            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1); }
+            50% { box-shadow: 0 0 25px 10px rgba(239, 68, 68, 0.5); transform: scale(1.02); }
+            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); transform: scale(1); }
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .animate-fail {
+            animation: fail-glow 0.6s ease-out, shake 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="app-container" class="w-full max-w-2xl mx-auto">
+
+        <!-- Start Screen -->
+        <div id="start-screen" class="container-box p-8 rounded-2xl text-center shadow-2xl">
+            <h1 class="text-4xl font-black text-cyan-300 mb-4">數位陷阱求生記</h1>
+            <h2 class="text-xl font-bold text-amber-300 mb-4">沉浸體驗版</h2>
+            <p class="text-slate-300 mb-8">你將面臨十個根據真實案例改編的情境。<br>開啟聲音，你的每個選擇都將帶來不同的後果。</p>
+            <button id="start-game-btn" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-4 px-6 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105">開始挑戰</button>
+        </div>
+        
+        <!-- Game Screen -->
+        <div id="game-screen" class="hidden container-box p-8 rounded-2xl shadow-2xl">
+            <div id="progress-bar" class="w-full bg-slate-700 rounded-full h-2.5 mb-4">
+                <div id="progress-indicator" class="bg-cyan-400 h-2.5 rounded-full" style="width: 0%"></div>
+            </div>
+            <p id="progress-text" class="text-center text-sm text-slate-400 mb-6">情境 1 / 10</p>
+            <div id="story-text" class="prose prose-invert prose-lg mb-8 bg-slate-800/50 p-6 rounded-md"></div>
+            <div id="question-text" class="text-xl font-bold text-amber-300 mb-6 text-center"></div>
+            <div id="choices-container" class="grid grid-cols-1 gap-4"></div>
+        </div>
+
+        <!-- Outcome Screen -->
+        <div id="outcome-screen" class="hidden container-box p-8 rounded-2xl shadow-2xl text-center">
+            <h2 id="outcome-title" class="text-4xl font-black mb-4"></h2>
+            <div id="outcome-content" class="text-slate-300 text-lg text-left"></div>
+            <button id="next-challenge-btn" class="w-full mt-8 bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-6 rounded-lg text-lg">前往下一個挑戰</button>
+        </div>
+
+        <!-- Final Screen -->
+        <div id="final-screen" class="hidden container-box p-8 rounded-2xl shadow-2xl text-center">
+            <h2 class="text-4xl font-black text-green-400 mb-4">挑戰完成！</h2>
+            <p class="text-slate-300 text-lg mb-6">恭喜你完成了所有防詐挑戰！你現在已經具備了基礎的數位世界生存技能。請永遠保持警覺！</p>
+            <div id="score-display" class="text-2xl font-bold mb-8"></div>
+            <button id="restart-game-btn" class="w-full mt-8 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 px-6 rounded-lg text-lg">重新挑戰一次</button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATA ---
+        const gameData = [
+            // ... (The 10 scenarios are the same as the previous version)
+            // 1. 遊戲點數詐騙
+            {
+                id: 'game_points',
+                story: "<h3>情境一：虛擬世界的交易</h3><p>你想購買一款熱門遊戲的稀有道具，在一個臉書社團看到有人用低於市價的價格出售。對方私訊你，說為了交易安全，雙方都需要先購買3000元的點數卡當『保證金』，交易完成後會退還。</p>",
+                question: "這時候，你會怎麼做？",
+                choices: [
+                    { text: "聽起來合理，去超商買點數給他。", outcome: 'game_points_fail' },
+                    { text: "堅持只用遊戲內建的交易系統或有信譽的第三方平台。", outcome: 'game_points_success' }
+                ]
+            },
+            // 2. 演唱會門票詐騙
+            {
+                id: 'concert_ticket',
+                story: "<h3>情境二：偶像的呼喚</h3><p>你最愛的韓團要來開演唱會，但你沒搶到票。一個自稱『資深粉絲』的人在粉絲群說可以原價讓票給你，但她說：『我現在有點忙，沒辦法用平台，你先匯款給我，我馬上把QR Code給你，很多人在問喔！』</p>",
+                question: "你會怎麼選擇？",
+                choices: [
+                    { text: "直接匯款，以免錯過難得的機會。", outcome: 'concert_ticket_fail' },
+                    { text: "堅持面交或使用有履約保證的官方售票平台，否則就放棄。", outcome: 'concert_ticket_success' }
+                ]
+            },
+            // 3. 打工詐騙 - 車手
+            {
+                id: 'job_mule',
+                story: "<h3>情境三：輕鬆錢的誘惑</h3><p>你在網路上看到一則廣告：『誠徵外務專員，日薪三千，現領』。聯絡後，對方交給你一張提款卡，讓你去ATM把錢領出來交給他，並說這只是幫公司處理帳務。</p>",
+                question: "你會接受這份工作嗎？",
+                choices: [
+                    { text: "聽起來很容易，只是幫忙領錢而已，做！", outcome: 'job_mule_fail' },
+                    { text: "拒絕。使用來路不明的提款卡領錢，風險太高。", outcome: 'job_mule_success' }
+                ]
+            },
+            // 4. 打工詐騙 - 人頭帳戶
+            {
+                id: 'job_account',
+                story: "<h3>情境四：家庭代工的真相</h3><p>你應徵了一份『在家幫忙貼貼紙』的家庭代工。對方說為了發薪水方便，需要你先將存摺和提款卡寄給他們公司會計部建檔，並保證絕不動用你的錢。</p>",
+                question: "你會寄出你的存摺和提款卡嗎？",
+                choices: [
+                    { text: "寄出。反正我戶頭裡也沒錢，應該沒關係。", outcome: 'job_account_fail' },
+                    { text: "絕對不寄。沒有任何正常公司會要求這個。", outcome: 'job_account_success' }
+                ]
+            },
+            // 5. 網路交友 - 情感詐騙
+            {
+                id: 'dating_sympathy',
+                story: "<h3>情境五：最熟悉的陌生人</h3><p>你和網路上認識的對象聊了兩個月，感覺非常契合。有一天，他突然很難過地告訴你，他的媽媽生病住院急需用錢，但他薪水還沒發，想跟你借一萬元應急。</p>",
+                question: "你會借錢給他嗎？",
+                choices: [
+                    { text: "他很可憐，而且我們感情這麼好，先借他。", outcome: 'dating_sympathy_fail' },
+                    { text: "表達關心，但堅持不借錢給從未見過面的人。", outcome: 'dating_sympathy_success' }
+                ]
+            },
+            // 6. 包裹詐騙
+            {
+                id: 'package_scam',
+                story: "<h3>情境六：神秘的包裹</h3><p>你收到一則簡訊：『[快遞公司]：您的包裹地址有誤無法派送，請點擊連結更新您的地址資訊。』你最近確實有網購，但不確定是不是這個。</p>",
+                question: "你會點擊連結嗎？",
+                choices: [
+                    { text: "點擊連結，趕快更新地址，免得包裹不見。", outcome: 'package_scam_fail' },
+                    { text: "不點擊。自己到官方網站或APP，用訂單編號查詢包裹狀態。", outcome: 'package_scam_success' }
+                ]
+            },
+            // 7. 假冒公務員
+            {
+                id: 'fake_official',
+                story: "<h3>情境七：權威的來電</h3><p>你接到一通自稱是『刑事警察局』的電話，對方能準確說出你的姓名和身分證號碼。他說你的健保卡被盜用，涉及洗錢案，需要你將存款轉到一個『金管會安全帳戶』接受監管。</p>",
+                question: "你會照著他的指示做嗎？",
+                choices: [
+                    { text: "聽起來很嚴重，而且他知道我的個資，應該是真的，照做。", outcome: 'fake_official_fail' },
+                    { text: "掛斷電話，並親自撥打165反詐騙專線查證。", outcome: 'fake_official_success' }
+                ]
+            },
+            // 8. 中獎詐騙
+            {
+                id: 'lottery_scam',
+                story: "<h3>情境八：幸運的你</h3><p>你的IG收到一則陌生訊息，恭喜你抽中某知名潮牌的限量聯名球鞋一雙。訊息中說，你只需要先支付2500元的『海外關稅與處理費』，就能領取獎品。</p>",
+                question: "你會支付這筆費用嗎？",
+                choices: [
+                    { text: "太幸運了！趕快付錢，以免獎品被取消。", outcome: 'lottery_scam_fail' },
+                    { text: "拒絕支付。真正的中獎不需要預付任何費用。", outcome: 'lottery_scam_success' }
+                ]
+            },
+            // 9. 假投資詐騙
+            {
+                id: 'investment_scam',
+                story: "<h3>情境九：學霸的秘密</h3><p>班上一位平常不太熟的同學，突然在LINE群組分享一個投資APP，說他靠這個每個月都能賺好幾萬零用錢，還貼出獲利截圖。他邀請大家一起加入，說有『內線消息』保證獲利。</p>",
+                question: "你會跟著下載並投入資金嗎？",
+                choices: [
+                    { text: "連學霸都在用，看起來很可靠，跟著投！", outcome: 'investment_scam_fail' },
+                    { text: "天下沒有白吃的午餐，拒絕加入。", outcome: 'investment_scam_success' }
+                ]
+            },
+            // 10. 私密照威脅
+            {
+                id: 'sextortion_scam',
+                story: "<h3>情境十：黑暗的威脅</h3><p>你收到一個陌生帳號的訊息，附上一張你的私密照片（可能是你曾傳給前任的，或是AI合成的）。對方威脅，如果你不馬上匯款一萬元給他，他就要把照片傳給你學校的所有人和你的家人。</p>",
+                question: "你會怎麼辦？",
+                choices: [
+                    { text: "非常害怕，為了名譽，只好先匯款了事。", outcome: 'sextortion_scam_fail' },
+                    { text: "不回應、不匯款、立刻封鎖對方，並將整個對話截圖告訴信任的師長或父母。", outcome: 'sextortion_scam_success' }
+                ]
+            }
+        ];
+        const outcomes = {
+            game_points_fail: { title: '🚨 遊戲結束！', content: '<h4>負面影響：</h4><p>你將點數卡序號給了對方後，立刻被封鎖。不但損失了3000元，原本要買的道具也沒了，可以說是雙重損失。</p><h4>解題邏輯：</h4><p>任何要求用「遊戲點數」作為保證金或進行私下交易的行為，都是詐騙的高風險信號。點數匿名、難以追蹤，是詐騙集團最愛的工具。應堅持使用有官方保障的交易管道。</p>' },
+            game_points_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你正確地辨識出要求「點數卡保證金」是詐騙的典型手法。堅持使用安全的官方交易管道，雖然可能比較麻煩，但卻是保護自己虛擬財產的唯一方式。</p>' },
+            concert_ticket_fail: { title: '🚨 票財兩失！', content: '<h4>負面影響：</h4><p>你匯款後，對方就人間蒸發了。你不但損失了票錢，更錯過了期待已久的演唱會，留下了深深的遺憾。</p><h4>解題邏輯：</h4><p>對方利用了你的「渴望」與「錯失恐懼(FOMO)」，並用「很多人在問」的話術製造「急迫感」。面對這種情況，防詐黃金法則「暫停、查證、質疑」是最好的武器。堅持安全交易方式是底線。</p>' },
+            concert_ticket_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你沒有被「錯失恐懼」沖昏頭，而是冷靜地堅持了安全的交易原則。記住，任何催促你、不給你思考時間、拒絕安全交易方式的賣家，都有極高的詐騙嫌疑。</p>' },
+            job_mule_fail: { title: '🚨 淪為車手！', content: '<h4>負面影響：</h4><p>在你領錢的當下或事後，很快就會被警察逮捕。你將成為詐欺案的「共同正犯」，面臨加重詐欺罪、洗錢罪等刑責，留下影響一輩子的前科紀錄，並可能需要賠償被害人的所有損失。</p><h4>解題邏輯：</h4><p>這觸犯了求職防騙「三不」原則。幫陌生人領錢，經手來路不明的款項，就是典型的「車手」行為。天下沒有白吃的午餐，超高薪資的簡單工作，背後必定隱藏着巨大的代價。</p>' },
+            job_mule_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你識破了「輕鬆賺大錢」的謊言，並理解到經手不明金流的巨大法律風險。保護自己的未來，遠比賺取短暫的快錢更重要。</p>' },
+            job_account_fail: { title: '🚨 成為人頭！', content: '<h4>負面影響：</h4><p>你的帳戶會立刻被用來收取贓款，並被設為「警示帳戶」。你名下所有的金融功能都會被凍結，無法開戶、辦卡。更嚴重的是，你將作為詐欺案的幫助犯被起訴，留下前科。</p><h4>解題邏輯：</h4><p>這嚴重違反了求職防騙「三不」原則中的「不提供」。任何正常的公司都不會、也不需要保管你的存摺和提款卡。這是將自己推入犯罪火坑的行為。</p>' },
+            job_account_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你緊緊守住了個人金融資訊安全的底線。記住，存摺、提款卡和密碼，就跟家裡的鑰匙一樣，絕不交給任何人。</p>' },
+            dating_sympathy_fail: { title: '🚨 感情與金錢的雙重打擊！', content: '<h4>負面影響：</h4><p>對方收到錢後，會編造更多理由向你索取更多金錢。這是一個無底洞，直到你被榨乾或醒悟為止。最終你不只損失了錢，更會因為信任被踐踏而受到嚴重的心理創傷。</p><h4>解題邏輯：</h4><p>對方利用了「喜好」與「同情」的心理鉤子。防禦的關鍵是：「見面前，絕不談錢」。無論故事多麼感人，都不能成為匯款的理由。真正的關心，是引導對方尋求正規的幫助管道。</p>' },
+            dating_sympathy_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你成功地將「情感」與「金錢」分開處理，沒有被對方的悲情故事沖昏頭。在網路世界中，保持這份理性是保護自己的不二法門。</p>' },
+            package_scam_fail: { title: '🚨 個資外洩！', content: '<h4>負面影響：</h4><p>你點擊的是釣魚網站連結。一旦你輸入姓名、電話、地址甚至信用卡資訊，這些個資就會被竊取，用於更進一步的詐騙。你也可能因此被安裝惡意程式。</p><h4>解題邏輯：</h4><p>這是典型的釣魚簡訊。防禦的關鍵是「查證」。不要點擊任何可疑連結，而是要透過「自己找的」官方管道（如官方APP、網站）來查詢，掌握主動權。</p>' },
+            package_scam_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你保持了高度警覺，沒有點擊來路不明的連結。養成「凡事透過官方管道查證」的習慣，可以抵禦絕大多數的釣魚攻擊。</p>' },
+            fake_official_fail: { title: '🚨 存款歸零！', content: '<h4>負面影響：</h4><p>你將畢生積蓄轉給了詐騙集團。所謂的「安全帳戶」根本不存在，錢一旦轉出，就幾乎不可能追回。你將面臨巨大的財產損失。</p><h4>解題邏輯：</h4><p>對方利用了「權威」的心理鉤子。真正的檢警調單位，絕對「不會」在電話中要求你轉帳、匯款或提供密碼。這是鐵則。接到類似電話，唯一的正確做法就是「掛斷、查證」。</p>' },
+            fake_official_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你識破了冒充公務員的騙術。記住「檢警調不電話辦案、不要求轉帳」的原則，就能免疫此類詐騙。</p>' },
+            lottery_scam_fail: { title: '🚨 希望的代價！', content: '<h4>負面影響：</h4><p>你支付了費用，但永遠等不到你的「獎品」。詐騙集團甚至可能用「還要再付一筆保險費」等理由，試圖騙你第二次。</p><h4>解題邏輯：</h4><p>對方利用了「貪婪」與「希望」的心理。真正的中獎活動，不會要求得獎者在領獎前支付任何名目的費用。要求「先付錢再領獎」的，100%是詐騙。</p>' },
+            lottery_scam_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你理解「天下沒有白吃的午餐」的道理，沒有被不勞而獲的慾望蒙蔽。對任何主動送上門的好處保持警覺，是成熟的表現。</p>' },
+            investment_scam_fail: { title: '🚨 血本無歸！', content: '<h4>負面影響：</h4><p>初期你可能會看到帳面上真的有「獲利」，讓你投入更多錢。但當你想把錢領出來時，平台會用各種理由拒絕，最後直接關閉，你的所有本金都將消失。</p><h4>解題邏輯：</h4><p>對方利用了「社會認同」（同學推薦）和「貪婪」的心理。任何宣稱「保證獲利、穩賺不賠」的投資都是詐騙。合法的投資必定有風險，高報酬必定伴隨高風險。</p>' },
+            investment_scam_success: { title: '👏 防禦成功！', content: '<h4>解題邏輯：</h4><p>你對投資抱持著正確的風險觀念，沒有輕信「保證獲利」的話術。不碰自己不懂的東西，是保護資產的基本原則。</p>' },
+            sextortion_scam_fail: { title: '🚨 無盡的勒索！', content: '<h4>負面影響：</h4><p>匯款一次，只會讓對方知道你很害怕、願意付錢。他們會變本加厲，不斷用新的藉口向你勒索更多錢，直到你崩潰為止。付錢無法解決問題，只會讓問題惡化。</p><h4>解題邏輯：</h4><p>對方利用了「恐懼」與「羞恥感」。解法是「消除羞恥感」，勇敢求助。不回應、不付款，立刻向信任的師長求助並報警。讓光照進黑暗，是讓威脅消失的最好方法。</p>' },
+            sextortion_scam_success: { title: '👏 勇敢的選擇！', content: '<h4>解題邏輯：</h4><p>你做出了最正確也最勇敢的選擇。面對私密照威脅，切記「不回應、不妥協、不匯款」，並第一時間尋求協助。你的勇敢，斬斷了對方利用恐懼控制你的鎖鏈。</p>' }
+        };
+
+        // --- UI ELEMENTS ---
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const outcomeScreen = document.getElementById('outcome-screen');
+        const finalScreen = document.getElementById('final-screen');
+        const appContainer = document.getElementById('app-container');
+
+        const storyText = document.getElementById('story-text');
+        const questionText = document.getElementById('question-text');
+        const choicesContainer = document.getElementById('choices-container');
+        
+        const outcomeTitle = document.getElementById('outcome-title');
+        const outcomeContent = document.getElementById('outcome-content');
+        const nextChallengeBtn = document.getElementById('next-challenge-btn');
+        
+        const progressIndicator = document.getElementById('progress-indicator');
+        const progressText = document.getElementById('progress-text');
+        const scoreDisplay = document.getElementById('score-display');
+
+        // --- GAME STATE ---
+        let currentChallengeIndex = 0;
+        let correctAnswers = 0;
+        let soundReady = false;
+        let successSynth, failSynth;
+
+        // --- EVENT LISTENERS ---
+        document.getElementById('start-game-btn').addEventListener('click', async () => {
+            if (!soundReady) {
+                await Tone.start();
+                setupSounds();
+                soundReady = true;
+            }
+            startGame();
+        });
+        document.getElementById('restart-game-btn').addEventListener('click', startGame);
+        nextChallengeBtn.addEventListener('click', nextChallenge);
+
+        // --- SOUND SETUP ---
+        function setupSounds() {
+            successSynth = new Tone.Synth({
+                oscillator: { type: 'sine' },
+                envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 }
+            }).toDestination();
+
+            failSynth = new Tone.Synth({
+                oscillator: { type: 'square' },
+                envelope: { attack: 0.01, decay: 0.4, sustain: 0.1, release: 0.5 }
+            }).toDestination();
+        }
+
+        function playSound(isSuccess) {
+            if (!soundReady) return;
+            if (isSuccess) {
+                successSynth.triggerAttackRelease('C5', '8n', Tone.now());
+                successSynth.triggerAttackRelease('G5', '8n', Tone.now() + 0.1);
+            } else {
+                failSynth.triggerAttackRelease('G#2', '8n', Tone.now());
+            }
+        }
+        
+        // --- VISUAL EFFECTS ---
+        function triggerVisualEffect(isSuccess) {
+            const effectClass = isSuccess ? 'animate-success' : 'animate-fail';
+            const container = outcomeScreen;
+            
+            if (container) {
+                container.classList.add(effectClass);
+                setTimeout(() => {
+                    container.classList.remove(effectClass);
+                }, 700);
+            }
+        }
+
+        // --- GAME LOGIC ---
+        function startGame() {
+            currentChallengeIndex = 0;
+            correctAnswers = 0;
+            showScreen('game');
+            renderChallenge();
+        }
+
+        function renderChallenge() {
+            const challenge = gameData[currentChallengeIndex];
+            
+            const progressPercentage = ((currentChallengeIndex) / gameData.length) * 100;
+            progressIndicator.style.width = `${progressPercentage}%`;
+            progressText.textContent = `情境 ${currentChallengeIndex + 1} / ${gameData.length}`;
+
+            storyText.innerHTML = challenge.story;
+            questionText.textContent = challenge.question;
+            choicesContainer.innerHTML = '';
+
+            challenge.choices.forEach(choice => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn w-full bg-slate-700 text-white font-bold py-4 px-6 rounded-lg text-lg text-left';
+                btn.textContent = choice.text;
+                btn.onclick = () => showOutcome(choice.outcome);
+                choicesContainer.appendChild(btn);
+            });
+        }
+        
+        function showOutcome(outcomeKey) {
+            const outcome = outcomes[outcomeKey];
+            const isSuccess = outcome.title.includes('👏') || outcome.title.includes('🎉');
+            
+            outcomeTitle.textContent = outcome.title;
+            if (!isSuccess) {
+                outcomeTitle.className = 'text-4xl font-black mb-4 text-rose-400';
+            } else {
+                outcomeTitle.className = 'text-4xl font-black mb-4 text-green-400';
+                correctAnswers++;
+            }
+            outcomeContent.innerHTML = outcome.content;
+            
+            if (currentChallengeIndex >= gameData.length - 1) {
+                nextChallengeBtn.textContent = "查看最終結果";
+            } else {
+                 nextChallengeBtn.textContent = "前往下一個挑戰";
+            }
+            
+            showScreen('outcome');
+            playSound(isSuccess);
+            triggerVisualEffect(isSuccess);
+        }
+        
+        function nextChallenge() {
+            currentChallengeIndex++;
+            if (currentChallengeIndex < gameData.length) {
+                showScreen('game');
+                renderChallenge();
+            } else {
+                showFinalScreen();
+            }
+        }
+
+        function showFinalScreen() {
+            scoreDisplay.innerHTML = `你的防詐等級評估：<br><span class="text-5xl text-amber-300 mt-2 block">${correctAnswers} / ${gameData.length}</span><p class="text-base mt-2 text-slate-400">答對 ${correctAnswers} 題</p>`;
+            showScreen('final');
+        }
+
+        function showScreen(screenName) {
+            const screens = ['start', 'game', 'outcome', 'final'];
+            screens.forEach(s => {
+                document.getElementById(`${s}-screen`).classList.add('hidden');
+            });
+
+            document.getElementById(`${screenName}-screen`).classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
+
