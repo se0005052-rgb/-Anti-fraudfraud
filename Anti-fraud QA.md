@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>青少年防詐騙互動問答 (最終統計版)</title>
+    <title>青少年防詐騙互動問答 (純問答版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,38 +15,39 @@
         .quiz-container {
             background-color: #1e293b; /* slate-800 */
         }
-        .stat-bar-container {
+        .option-btn {
             transition: all 0.2s ease-in-out;
-            cursor: pointer;
         }
-        .stat-bar-container:hover {
-            background-color: #334155; /* slate-700 */
+        .option-btn:not(:disabled):hover {
+            transform: scale(1.03);
+            background-color: #0369a1; /* sky-700 */
         }
-        .bar {
-            transition: width 0.3s ease-in-out;
+        .correct {
+            background-color: #16a34a !important; /* green-600 */
+            border-color: #22c55e !important; /* green-500 */
+            transform: scale(1.05);
         }
-        .result-bar {
-             background-color: #06b6d4; /* cyan-500 */
+        .incorrect {
+            background-color: #dc2626 !important; /* red-600 */
+            border-color: #ef4444 !important; /* red-500 */
+            opacity: 0.7;
         }
-        .result-bar.low {
-            background-color: #ef4444; /* red-500 */
-        }
-        .result-bar.medium {
-            background-color: #f59e0b; /* amber-500 */
-        }
-        .result-bar.high {
-            background-color: #22c55e; /* green-500 */
+        .selected-incorrect {
+             background-color: #dc2626 !important; /* red-600 */
+            border-color: #ef4444 !important; /* red-500 */
+            opacity: 1;
+            transform: scale(1.05);
         }
     </style>
 </head>
 <body class="bg-slate-900 flex items-center justify-center min-h-screen p-4">
 
-    <div class="quiz-container w-full max-w-3xl mx-auto text-white p-6 sm:p-8 rounded-2xl shadow-2xl border border-slate-700">
+    <div class="quiz-container w-full max-w-2xl mx-auto text-white p-6 sm:p-8 rounded-2xl shadow-2xl border border-slate-700">
 
         <!-- Start Screen -->
         <div id="start-screen" class="text-center">
             <h1 class="text-3xl sm:text-4xl font-black text-cyan-300 mb-4">防詐知識挑戰賽</h1>
-            <p class="text-slate-300 mb-8">點擊下方按鈕，開始與現場聽眾進行一場即時的防詐騙知識問答！</p>
+            <p class="text-slate-300 mb-8">點擊下方按鈕，開始一場即時的防詐騙知識問答！</p>
             <button id="start-btn" class="w-full bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105">
                 開始測驗
             </button>
@@ -58,22 +59,25 @@
                 <p id="question-counter" class="text-sm text-slate-400">問題 1 / 10</p>
                 <h2 id="question-text" class="text-xl sm:text-2xl font-bold mt-2">問題文字...</h2>
             </div>
-            <div id="stats-container" class="space-y-3 mb-6">
-                <!-- Statistics bars will be generated here -->
+            <div id="options-container" class="space-y-4 mb-6">
+                <!-- Option buttons will be generated here -->
+            </div>
+            <div id="explanation-container" class="hidden mt-6 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
+                <h3 class="font-bold text-amber-300 mb-2">觀念解析</h3>
+                <p id="explanation-text" class="text-slate-300"></p>
             </div>
             <div id="controls-container" class="mt-6 flex flex-col sm:flex-row gap-4">
-                 <button id="next-question-btn" class="w-full bg-cyan-500 hover:bg-cyan-600 font-bold py-3 px-6 rounded-lg">下一題</button>
+                 <button id="next-question-btn" class="hidden w-full bg-cyan-500 hover:bg-cyan-600 font-bold py-3 px-6 rounded-lg">下一題</button>
             </div>
         </div>
-
+        
         <!-- Result Screen -->
-        <div id="result-screen" class="hidden">
-            <h2 class="text-3xl font-black text-yellow-300 mb-6 text-center">測驗結果統計</h2>
-            <div id="result-summary-container" class="space-y-4 max-h-96 overflow-y-auto pr-2">
-                <!-- Result summary will be generated here -->
-            </div>
+        <div id="result-screen" class="hidden text-center">
+            <h2 class="text-3xl font-black text-yellow-300 mb-4">測驗完成！</h2>
+            <p class="text-slate-300 mb-8">做得很好！你已經掌握了重要的防詐知識，記得在生活中應用它們！</p>
+             <div class="text-6xl mb-8">🏆</div>
             <button id="restart-btn" class="w-full mt-6 bg-yellow-500 hover:bg-yellow-600 text-slate-900 font-bold py-3 px-6 rounded-lg text-lg">
-                重新開始
+                重新挑戰一次
             </button>
         </div>
 
@@ -103,13 +107,11 @@
 
         const questionCounter = document.getElementById('question-counter');
         const questionText = document.getElementById('question-text');
-        const statsContainer = document.getElementById('stats-container');
-        const resultSummaryContainer = document.getElementById('result-summary-container');
-
+        const optionsContainer = document.getElementById('options-container');
+        const explanationContainer = document.getElementById('explanation-container');
+        const explanationText = document.getElementById('explanation-text');
+        
         let currentQuestionIndex = 0;
-        let answerCounts = {};
-        let totalVotes = 0;
-        const allResults = [];
 
         startBtn.addEventListener('click', startQuiz);
         nextQuestionBtn.addEventListener('click', showNextQuestion);
@@ -120,124 +122,80 @@
             resultScreen.classList.add('hidden');
             quizScreen.classList.remove('hidden');
             currentQuestionIndex = 0;
-            allResults.length = 0; // Clear previous results
             showQuestion();
         }
-
+        
         function showQuestion() {
             resetState();
             const currentQuestion = quizData[currentQuestionIndex];
             questionCounter.textContent = `問題 ${currentQuestionIndex + 1} / ${quizData.length}`;
             questionText.textContent = currentQuestion.question;
 
-            answerCounts = {};
-            totalVotes = 0;
-
             currentQuestion.options.forEach(option => {
-                answerCounts[option] = 0;
-                const barContainer = document.createElement('div');
-                barContainer.className = 'stat-bar-container p-3 rounded-lg border-2 border-slate-600';
-                barContainer.dataset.option = option;
-                
-                barContainer.innerHTML = `
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="font-bold">${option}</span>
-                        <span class="vote-count text-lg font-mono">0 票 (0%)</span>
-                    </div>
-                    <div class="w-full bg-slate-600 rounded-full h-4">
-                        <div class="bar bg-cyan-500 h-4 rounded-full" style="width: 0%"></div>
-                    </div>
-                `;
-                
-                barContainer.addEventListener('click', () => {
-                    answerCounts[option]++;
-                    totalVotes++;
-                    updateStats();
-                });
-
-                statsContainer.appendChild(barContainer);
-            });
-            
-            if (currentQuestionIndex === quizData.length - 1) {
-                nextQuestionBtn.textContent = "完成測驗並查看結果";
-            } else {
-                nextQuestionBtn.textContent = "下一題";
-            }
-        }
-        
-        function updateStats() {
-            const bars = statsContainer.querySelectorAll('.stat-bar-container');
-            bars.forEach(barEl => {
-                const option = barEl.dataset.option;
-                const count = answerCounts[option];
-                const percentage = totalVotes > 0 ? (count / totalVotes) * 100 : 0;
-
-                barEl.querySelector('.vote-count').textContent = `${count} 票 (${percentage.toFixed(0)}%)`;
-                barEl.querySelector('.bar').style.width = `${percentage}%`;
+                const button = document.createElement('button');
+                button.textContent = option;
+                button.className = 'option-btn w-full bg-sky-600 text-white font-bold p-3 rounded-lg border-2 border-transparent';
+                button.addEventListener('click', () => selectAnswer(button, option));
+                optionsContainer.appendChild(button);
             });
         }
 
-        function resetState() {
-            while (statsContainer.firstChild) {
-                statsContainer.removeChild(statsContainer.firstChild);
-            }
-        }
-
-        function saveAndProceed() {
+        function selectAnswer(selectedButton, selectedOption) {
             const currentQuestion = quizData[currentQuestionIndex];
-            const correctVotes = answerCounts[currentQuestion.answer] || 0;
-            const correctRatio = totalVotes > 0 ? (correctVotes / totalVotes) * 100 : 0;
+            const isCorrect = selectedOption === currentQuestion.answer;
             
-            allResults.push({
-                question: currentQuestion.question,
-                correctRatio: correctRatio,
-                explanation: currentQuestion.explanation
-            });
+            Array.from(optionsContainer.children).forEach(button => {
+                button.disabled = true;
+                const optionText = button.textContent;
 
+                if (optionText === currentQuestion.answer) {
+                    button.classList.add('correct');
+                    button.innerHTML += ' <span class="font-bold">✓</span>';
+                } else {
+                    button.classList.add('incorrect');
+                }
+            });
+            
+            if (!isCorrect) {
+                selectedButton.classList.remove('incorrect');
+                selectedButton.classList.add('selected-incorrect');
+                selectedButton.innerHTML += ' <span class="font-bold">✗</span>';
+            }
+
+            explanationContainer.classList.remove('hidden');
+            explanationText.textContent = currentQuestion.explanation;
+            
+            if (currentQuestionIndex < quizData.length - 1) {
+                nextQuestionBtn.textContent = '下一題';
+            } else {
+                nextQuestionBtn.textContent = '查看結果';
+            }
+            nextQuestionBtn.classList.remove('hidden');
+        }
+
+        function showNextQuestion() {
             currentQuestionIndex++;
             if (currentQuestionIndex < quizData.length) {
                 showQuestion();
             } else {
-                showResults();
+                showResultScreen();
+            }
+        }
+        
+        function showResultScreen(){
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+        }
+
+        function resetState() {
+            nextQuestionBtn.classList.add('hidden');
+            explanationContainer.classList.add('hidden');
+            while(optionsContainer.firstChild) {
+                optionsContainer.removeChild(optionsContainer.firstChild);
             }
         }
 
-        function showNextQuestion() {
-            saveAndProceed();
-        }
-
-        function showResults() {
-            quizScreen.classList.add('hidden');
-            resultScreen.classList.remove('hidden');
-            resultSummaryContainer.innerHTML = '';
-
-            allResults.forEach((result, index) => {
-                const resultEl = document.createElement('div');
-                resultEl.className = 'bg-slate-700/50 p-4 rounded-lg';
-
-                let barColorClass = 'result-bar';
-                if (result.correctRatio < 50) {
-                    barColorClass += ' low';
-                } else if (result.correctRatio < 80) {
-                    barColorClass += ' medium';
-                } else {
-                    barColorClass += ' high';
-                }
-
-                resultEl.innerHTML = `
-                    <p class="font-bold text-sm mb-2">Q${index + 1}: ${result.question}</p>
-                    <div class="flex justify-between items-center mb-1 text-sm">
-                        <span class="text-slate-300">答對率</span>
-                        <span class="font-bold ${barColorClass.split(' ')[1]}--text">${result.correctRatio.toFixed(0)}%</span>
-                    </div>
-                    <div class="w-full bg-slate-600 rounded-full h-3">
-                        <div class="${barColorClass} h-3 rounded-full" style="width: ${result.correctRatio}%"></div>
-                    </div>
-                    <p class="text-xs text-slate-400 mt-2"><strong>解析：</strong>${result.explanation}</p>
-                `;
-                resultSummaryContainer.appendChild(resultEl);
-            });
-        }
     </script>
 </body>
 </html>
+
